@@ -17,6 +17,7 @@ case "$BOARD" in
     gracelte) OUT=out-gracelte; BOARD_CFLAGS="-DBOARD_NAME=\"GRACELTE\" -DBOARD_FB_BASE=0xd8000000UL" ;;
     *) echo "unknown BOARD=$BOARD (herolte or gracelte)" >&2; exit 1 ;;
 esac
+[ -z "${GPU_RESET:-}" ] || { BOARD_CFLAGS="$BOARD_CFLAGS -DPROBE_GPU_RESET=1"; OUT="$OUT-gpureset"; }
 [ -z "${FB_BASE:-}" ] || BOARD_CFLAGS="$BOARD_CFLAGS -DBOARD_FB_BASE=${FB_BASE}UL"
 mkdir -p "$OUT"
 CFLAGS="$BOARD_CFLAGS -c -O2 -ffreestanding -fno-builtin -fno-stack-protector -fno-pic -fno-pie -nostdlib -fno-asynchronous-unwind-tables -fno-jump-tables -mgeneral-regs-only -mstrict-align -mcpu=cortex-a53 -Wall -Wextra -Werror"

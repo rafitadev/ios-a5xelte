@@ -19,9 +19,20 @@ prints `G3D OFF: GPU NOT READ` and writes nothing. Expected on a T880 MP12:
 GPU ID product 0x0880, SHADER PRESENT 0xfff. The values are not known until a
 Note7 runs it.
 
+Result (owner's photo, Note7 N930F, read by eye so recheck digits): the probe
+printed the GPU lines, not `G3D OFF`, so S-Boot leaves G3D powered with its
+clock running and the Mali registers answer. GPU ID shows product 0x0880
+(Mali-T880); JS PRESENT 7, tiler/L2 present 1, shader mask with 12 cores.
+
+## Stage 2 (opt-in, writes registers): `GPU_RESET=1`
+
+`BOARD=gracelte GPU_RESET=1 sh shim/herolte/build.sh` ->
+`shim/herolte/out-gracelte-gpureset/probe.Image`. After the reads it soft-resets
+the GPU (waits for RESET_COMPLETED), powers L2, tiler and shaders (waits for the
+READY bitmaps), prints each result, then soft-resets again. Offsets checked
+against `drivers/gpu/arm/t8xx/r12p0/mali_midg_regmap.h` (Samsung/Lineage).
+
 ## Stages that need the phone and the result of stage 1
-2. Power G3D on (PMU CONFIG write + clock/CMU_G3D), read GPU ID again. This can
-   hang the bus until a forced reboot; not attempted.
 3. Job submission and GPU MMU (Midgard, Panfrost-style) from a kernel service.
 4. An iOS-side bridge (Apple's AGX stack expects its own GPU); not solved in
    this tree even for the A5's Mali-T720.

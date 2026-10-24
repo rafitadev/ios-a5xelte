@@ -20,6 +20,41 @@ static uint32_t rd32(uintptr_t addr)
     return *(volatile uint32_t *)addr;
 }
 
+#ifdef PROBE_GPU_RESET
+/* Midgard register map (kbase mali_midg_regmap.h). Opt-in, WRITES registers:
+ * build with GPU_RESET=1. Soft reset, then power L2, tiler and shaders. */
+#define GPU_IRQ_RAWSTAT 0x020U
+#define GPU_IRQ_CLEAR   0x024U
+#define GPU_COMMAND     0x030U
+#define GPU_STATUS      0x034U
+#define SHADER_READY    0x140U
+#define TILER_READY     0x150U
+#define L2_READY        0x160U
+#define SHADER_PWRON    0x180U
+#define TILER_PWRON     0x190U
+#define L2_PWRON        0x1a0U
+#define IRQ_RESET_DONE  (1U << 8)
+#define CMD_SOFT_RESET  1U
+
+static uint64_t counter(void);
+
+static void wr32(uintptr_t addr, uint32_t v)
+{
+    *(volatile uint32_t *)addr = v;
+}
+
+/* Wait up to ~1 s of counter ticks for (reg & mask) == want. */
+static int wait32(uintptr_t addr, uint32_t mask, uint32_t want, uint64_t hz)
+{
+    uint64_t t0 = counter();
+    while (counter() - t0 < hz) {
+        if ((rd32(addr) & mask) == want)
+            return 1;
+    }
+    return 0;
+}
+#endif
+
 static uint64_t counter(void)
 {
     uint64_t value;
@@ -73,6 +108,33 @@ void hero_probe_main(uintptr_t fdt, uint64_t el, uint64_t sctlr, uint64_t image)
         hero_fb_hex(row++, "TILER PRESENT", rd32(MALI_BASE + 0x110));
         hero_fb_hex(row++, "L2 PRESENT", rd32(MALI_BASE + 0x120));
         hero_fb_hex(row++, "JS PRESENT", rd32(MALI_BASE + 0x01c));
+#ifdef PROBE_GPU_RESET
+        {
+            uint64_t hz = freq ? freq : 26000000U;
+            uint32_t sh = rd32(MALI_BASE + 0x100), ti = rd32(MALI_BASE + 0x110),
+                     l2 = rd32(MALI_BASE + 0x120);
+            wr32(MALI_BASE + GPU_IRQ_CLEAR, 0xffffffffU);
+            wr32(MALI_BASE + GPU_COMMAND, CMD_SOFT_RESET);
+            int ok = wait32(MALI_BASE + GPU_IRQ_RAWSTAT, IRQ_RESET_DONE, IRQ_RESET_DONE, hz);
+            hero_fb_text(row++, ok ? "GPU RESET: DONE" : "GPU RESET: TIMEOUT");
+            hero_fb_hex(row++, "GPU ID AFTER", rd32(MALI_BASE + 0x000));
+            wr32(MALI_BASE + GPU_IRQ_CLEAR, 0xffffffffU);
+            wr32(MALI_BASE + L2_PWRON, l2);
+            ok = wait32(MALI_BASE + L2_READY, l2, l2, hz);
+            hero_fb_hex(row++, ok ? "L2 READY" : "L2 TIMEOUT", rd32(MALI_BASE + L2_READY));
+            wr32(MALI_BASE + TILER_PWRON, ti);
+            ok = wait32(MALI_BASE + TILER_READY, ti, ti, hz);
+            hero_fb_hex(row++, ok ? "TILER READY" : "TILER TIMEOUT", rd32(MALI_BASE + TILER_READY));
+            wr32(MALI_BASE + SHADER_PWRON, sh);
+            ok = wait32(MALI_BASE + SHADER_READY, sh, sh, hz);
+            hero_fb_hex(row++, ok ? "SHADER READY" : "SHADER TIMEOUT", rd32(MALI_BASE + SHADER_READY));
+            hero_fb_hex(row++, "GPU STATUS", rd32(MALI_BASE + GPU_STATUS));
+            /* leave the GPU as S-Boot gave it */
+            wr32(MALI_BASE + GPU_COMMAND, CMD_SOFT_RESET);
+            wait32(MALI_BASE + GPU_IRQ_RAWSTAT, IRQ_RESET_DONE, IRQ_RESET_DONE, hz);
+            wr32(MALI_BASE + GPU_IRQ_CLEAR, 0xffffffffU);
+        }
+#endif
     } else {
         hero_fb_text(row++, "G3D OFF: GPU NOT READ");
     }
