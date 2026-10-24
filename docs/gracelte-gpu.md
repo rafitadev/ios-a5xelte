@@ -1,7 +1,12 @@
 # gracelte GPU (Mali-T880 MP12): what is known and the staged plan
 
-State: **no GPU support**. iOS is CPU-rendered (`sw_new_context`, then a copy to
-the DECON scanout buffer), as on the S7. Nothing here touches Mali yet.
+State (updated after merging upstream herolte 4777db5): the S7 author added
+Mali-T880 XNU patches 0225-0236 (probe, first job, fragment clear, triangle,
+textured quad, experimental GPU present). They are boot-arg gated (`herogpu=N`,
+`sweetfb_gpu=1`); a default boot is still CPU-rendered like before. On this
+branch the Mali patches draw into the Note7 scanout (`HG_FB_PA` in 0227 is
+0xd8000000, not the S7's 0xe2a00000). Nothing below was run on a Note7 yet.
+The probe stages further down are a bare-metal check done before that merge.
 
 Hardware, from LineageOS `exynos8890.dtsi` (read from source, unmeasured):
 
