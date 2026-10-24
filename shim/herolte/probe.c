@@ -8,6 +8,18 @@
 
 #define RECOVERY_DELAY_S 60U
 
+/* Exynos 8890 G3D (Mali-T880 MP12), from exynos8890.dtsi: power domain
+ * pd-g3d@105c4060 (PMU 0x105c0000 + 0x4060, STATUS at +4) and the GPU at
+ * mali@14AC0000. Read-only: nothing here writes a register. */
+#define PMU_G3D_CONFIG 0x105c4060UL
+#define PMU_G3D_STATUS 0x105c4064UL
+#define MALI_BASE      0x14ac0000UL
+
+static uint32_t rd32(uintptr_t addr)
+{
+    return *(volatile uint32_t *)addr;
+}
+
 static uint64_t counter(void)
 {
     uint64_t value;
@@ -49,6 +61,21 @@ void hero_probe_main(uintptr_t fdt, uint64_t el, uint64_t sctlr, uint64_t image)
     }
     /* MMFR0[23:20] TGran16: 0 means no 16 KiB pages (needs the 4 KiB XNU). */
     hero_fb_text(row++, ((mmfr0 >> 20) & 15U) ? "16K PAGES: YES" : "16K PAGES: NO");
+
+    /* GPU: only touch the Mali registers when the PMU says G3D is powered
+     * (STATUS[3:0] == 0xf); an unpowered block can hang the bus. */
+    uint32_t g3d_cfg = rd32(PMU_G3D_CONFIG), g3d_st = rd32(PMU_G3D_STATUS);
+    hero_fb_hex(row++, "G3D CONFIG", g3d_cfg);
+    hero_fb_hex(row++, "G3D STATUS", g3d_st);
+    if ((g3d_st & 0xfU) == 0xfU) {
+        hero_fb_hex(row++, "MALI GPU ID", rd32(MALI_BASE + 0x000));
+        hero_fb_hex(row++, "SHADER PRESENT", rd32(MALI_BASE + 0x100));
+        hero_fb_hex(row++, "TILER PRESENT", rd32(MALI_BASE + 0x110));
+        hero_fb_hex(row++, "L2 PRESENT", rd32(MALI_BASE + 0x120));
+        hero_fb_hex(row++, "JS PRESENT", rd32(MALI_BASE + 0x01c));
+    } else {
+        hero_fb_text(row++, "G3D OFF: GPU NOT READ");
+    }
 
     if (!freq)
         freq = 26000000U;   /* exynos8890.dtsi timer clock-frequency */
