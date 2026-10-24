@@ -1,0 +1,28 @@
+name: publish-kernel
+# Copies the kernel from a finished xnu run into a DRAFT release (private to the
+# repo owner) so it can be downloaded as a single file.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'xnu run id to publish'
+        required: true
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download and publish kernel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          gh run download "${{ inputs.run_id }}" -R "${{ github.repository }}" -n xnu-kernel -D k
+          f="$(find k -name kernel.development.herolte | head -1)"
+          test -n "$f"
+          sha256sum "$f" > SHA256SUMS-kernel
+          gh release create "kernel-${{ inputs.run_id }}" "$f" SHA256SUMS-kernel \
+            -R "${{ github.repository }}" --draft --target "${{ github.sha }}" \
+            --title "kernel from run ${{ inputs.run_id }}" --notes "draft; kernel.development.herolte"
