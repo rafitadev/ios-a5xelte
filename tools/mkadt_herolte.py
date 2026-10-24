@@ -20,6 +20,7 @@ DRAM_SIZE = 0x20000000      # 512 MiB, ends below TIMA at 0xb1000000
 BANK2_BASE, BANK2_SIZE = 0x880000000, 0x80000000
 SOC_BASE = 0x10000000       # arm-io ranges base; child regs are relative
 FB_BASE, FB_WIDTH, FB_HEIGHT = 0xe2a00000, 1440, 2560
+BOARD = 'herolte'            # or 'gracelte' (Galaxy Note7, SM-N930F), see --board
 
 
 def set_prop(node, name, value):
@@ -45,12 +46,13 @@ def build(canvas=(FB_WIDTH, FB_HEIGHT), dram=(DRAM_BASE, DRAM_SIZE)):
     # 'samsung,a5xelte' keeps the shared SweetPlatformExpert IONameMatch.
     set_prop(root, 'compatible', mkadt.cstr('D22AP') + mkadt.cstr('iPhone10,3') +
              mkadt.cstr('samsung,a5xelte') + mkadt.cstr('samsung,herolte') +
+             (mkadt.cstr('samsung,gracelte') if BOARD == 'gracelte' else b'') +
              mkadt.cstr('samsung,exynos8890') + mkadt.cstr('AppleARM'))
     chosen = child(root, 'chosen')
     set_prop(chosen, 'dram-base', mkadt.u64(dram[0]))
     set_prop(chosen, 'dram-size', mkadt.u64(dram[1]))
-    set_prop(chosen, 'firmware-version', mkadt.cstr('herolte-entry'))
-    set_prop(chosen, 'system-firmware-version', mkadt.cstr('herolte-entry'))
+    set_prop(chosen, 'firmware-version', mkadt.cstr(BOARD + '-entry'))
+    set_prop(chosen, 'system-firmware-version', mkadt.cstr(BOARD + '-entry'))
     # MobileGestalt derives the UDID from these; without them it waits for a
     # Bluetooth/Wi-Fi driver forever, and LaunchServices never finishes seeding
     # the app database (SpringBoard stays on the boot logo). Synthetic,
@@ -142,7 +144,14 @@ if __name__ == '__main__':
                         help='XNU RAM = the second bank instead of the 512 MiB window')
     parser.add_argument('--bank2-mb', type=int, default=BANK2_SIZE >> 20,
                         help='MiB of the second bank to use (2048 panics in kmem_range_init)')
+    parser.add_argument('--board', choices=('herolte', 'gracelte'), default='herolte',
+                        help='gracelte = Galaxy Note7 SM-N930F (same SoC; see docs/gracelte-bringup.md)')
+    parser.add_argument('--fb-base', type=lambda v: int(v, 0), default=None,
+                        help='S-Boot framebuffer PA if the probe shows it differs from 0xe2a00000')
     args = parser.parse_args()
+    BOARD = args.board
+    if args.fb_base is not None:
+        FB_BASE = args.fb_base
     canvas = tuple(int(v) for v in args.canvas.lower().split('x'))
     dram = (BANK2_BASE, min(args.bank2_mb << 20, BANK2_SIZE)) if args.bank2 else (DRAM_BASE, DRAM_SIZE)
     blob = adt.serialize(build(canvas, dram))
