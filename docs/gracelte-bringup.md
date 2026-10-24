@@ -29,12 +29,38 @@ yet. Source: LineageOS `android_kernel_samsung_universal8890` (lineage-18.1),
 | Battery/charger | S7 | MAX77854 + own battery dtsi | patches 0220/0221 (fuel gauge on HSI2C1) must be re-checked |
 | Extras, unused for now | | S Pen (Wacom GPA0-1/GPA0-6), iris, CS47L91 audio | later |
 
+## What exists for gracelte in this repo
+
+| Piece | gracelte entry point | Notes |
+| --- | --- | --- |
+| Loader + probe | `sh shim/gracelte/build.sh` -> `shim/herolte/out-gracelte/{probe,xnu_boot}.Image` | same sources as the S7; screen text says GRACELTE; `FB_BASE=0x...` overrides the framebuffer |
+| BOOT packer | `tools/gracelte-pack-boot.py` | runs `herolte-pack-boot.py` unchanged; pass the Note7's own `--partition-size` |
+| ADT | `tools/mkadt_gracelte.py` (or `mkadt_herolte.py --board gracelte`) | adds `samsung,gracelte`, `gracelte-entry`; `--fb-base` for the ADT side |
+| Log pull / root flash / root tuning | `tools/gracelte-log-pull.py`, `gracelte-flash-root.py`, `gracelte-tune-ios-root.sh` | same by-name paths; flash state file defaults to `gracelte-flash-root.state` |
+| XNU kernel | **`MACHINE_CONFIG=HEROLTE`** (workflow default) | same SoC; patches 0200-0224 are shared, no GRACELTE machine config yet |
+
+Verified here: the loader/probe compile for both boards, the ADT builds, the
+tool front ends start. Nothing has run on a Note7.
+
+## Open items (need the phone)
+
+- S-Boot framebuffer address and DECON handoff on the Note7 (probe).
+- RAM windows: the `0x90000000..0xb0000000` XNU window and `0x8ffff000` log
+  page are the S7's; the Note7 DTB has a smaller first bank and may reserve
+  differently.
+- Touch IC: patch 0211 only speaks sec_ts at 0x48. The Note7 DTS also lists an
+  Atmel mXT at 0x4a; if 0x48 never ACKs, an mXT driver is needed.
+- Fuel gauge/charger: the Note7 DTS has the same MAX77854 on HSI2C_1
+  (0x13650000) as the S7, so patches 0220/0221 should carry over; the
+  capacity comes from the chip, but this is untested.
+- Everything else (GPU, Wi-Fi, audio, S Pen, iris, USB-C) is missing, as on the S7.
+
 ## Steps
 
 1. Backup BOOT and EFS from TWRP (`/dev/block/platform/155a0000.ufs/by-name/`).
-2. `sh shim/herolte/build.sh`, pack the **probe** with `tools/herolte-pack-boot.py`
+2. `sh shim/gracelte/build.sh`, pack the **probe** with `tools/gracelte-pack-boot.py`
    against the Note7's own BOOT (check `--partition-size`; do not reuse the S7 value).
 3. Read from the probe: FDT/initrd/image addresses, framebuffer address, MIDR/MPIDR.
-4. `python3 tools/mkadt_herolte.py gracelte.adt --board gracelte [--fb-base 0x...]`
+4. `python3 tools/mkadt_gracelte.py gracelte.adt [--fb-base 0x...]`
    then the usual `mkpayload.py` + `pack` flow.
 5. Touch: check which address answers (0x48 or 0x4a) before trusting events.

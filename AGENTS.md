@@ -1,3 +1,7 @@
+# Working on the GRACELTE port (Galaxy Note7 SM-N930F, Exynos 8890)
+
+- Read `GRACELTE_PROGRESS.md` and `docs/gracelte-bringup.md` first; it reuses the HEROLTE code. Same partition rules as HEROLTE: XNU trials may write only BOOT, keep the stock BOOT and an EFS backup off the phone, never write EFS, RECOVERY or the bootloader.
+
 # Working on the HEROLTE port (Galaxy S7 SM-G930F, Exynos 8890)
 
 - Read `HEROLTE_PROGRESS.md` and `docs/herolte-bringup.md` first; record new device evidence in the former. The A5XELTE files below are the reference implementation this port adapts.
