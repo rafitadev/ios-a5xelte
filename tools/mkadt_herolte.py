@@ -150,6 +150,8 @@ if __name__ == '__main__':
                         help='S-Boot framebuffer PA if the probe shows it differs from 0xe2a00000')
     args = parser.parse_args()
     BOARD = args.board
+    if BOARD == 'gracelte':
+        FB_BASE = 0xd8000000   # Note7 S-Boot scanout, seen by the probe (S7: 0xe2a00000)
     if args.fb_base is not None:
         FB_BASE = args.fb_base
     canvas = tuple(int(v) for v in args.canvas.lower().split('x'))

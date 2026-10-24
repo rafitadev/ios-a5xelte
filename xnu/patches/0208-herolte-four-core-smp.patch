@@ -161,7 +161,7 @@ index 47b0324..7a3ba54 100644
  #define HEROLTE                       1
 +/* The four Cortex-A53 "Apollo" cores, MPIDR 0x100..0x103, via PSCI CPU_ON. */
 +#define SWEET_SMP_MAX_CPUS            4
- #define A5XELTE_FB_PA                 0xe2a00000
+ #define A5XELTE_FB_PA                 0xd8000000
  #define A5XELTE_FB_WIDTH              1440
  #define A5XELTE_FB_HEIGHT             2560
 @@ -25,6 +26,7 @@

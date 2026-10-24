@@ -14,7 +14,7 @@ OUT=out
 BOARD_CFLAGS=""
 case "$BOARD" in
     herolte) ;;
-    gracelte) OUT=out-gracelte; BOARD_CFLAGS="-DBOARD_NAME=\"GRACELTE\"" ;;
+    gracelte) OUT=out-gracelte; BOARD_CFLAGS="-DBOARD_NAME=\"GRACELTE\" -DBOARD_FB_BASE=0xd8000000UL" ;;
     *) echo "unknown BOARD=$BOARD (herolte or gracelte)" >&2; exit 1 ;;
 esac
 [ -z "${FB_BASE:-}" ] || BOARD_CFLAGS="$BOARD_CFLAGS -DBOARD_FB_BASE=${FB_BASE}UL"

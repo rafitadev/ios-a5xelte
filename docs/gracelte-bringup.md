@@ -44,7 +44,7 @@ tool front ends start. Nothing has run on a Note7.
 
 ## Open items (need the phone)
 
-- S-Boot framebuffer address and DECON handoff on the Note7 (probe).
+- ~~S-Boot framebuffer address~~: the Note7 probe shows **0xd8000000** (the TWRP cmdline agrees: `s3cfb.bootloaderfb=0xd8000000`). It is baked into the XNU patches (`A5XELTE_FB_PA` in 0200/0208/0218) and into the loader/ADT defaults for gracelte. Note that this branch's kernel therefore no longer targets the S7 framebuffer.
 - RAM windows: the `0x90000000..0xb0000000` XNU window and `0x8ffff000` log
   page are the S7's; the Note7 DTB has a smaller first bank and may reserve
   differently.

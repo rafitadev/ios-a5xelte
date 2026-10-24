@@ -400,7 +400,7 @@ index dd22be9..a3b4772 100644
 +#if defined(ARM64_BOARD_CONFIG_HEROLTE)
 +/* Galaxy S7 SM-G930F: S-Boot leaves DECON_F scanning out this buffer. */
 +#define HEROLTE                       1
-+#define A5XELTE_FB_PA                 0xe2a00000
++#define A5XELTE_FB_PA                 0xd8000000
 +#define A5XELTE_FB_WIDTH              1440
 +#define A5XELTE_FB_HEIGHT             2560
 +#define A5XELTE_FB_STRIDE             5760
