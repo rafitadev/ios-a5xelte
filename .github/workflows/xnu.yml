@@ -19,7 +19,7 @@ on:
         description: GitHub runner image (empty = macos-26 for 26.x, macos-15-intel otherwise)
         default: ""
   push:
-    branches: [main, herolte, codex/a5xelte-bringup, herolte-ios18, herolte-ios26]
+    branches: [main, herolte, codex/a5xelte-bringup, herolte-ios18, herolte-ios26, gracelte-ios26]
     paths:
       - "xnu/patches/**"
       - "xnu/patches-11215/**"
@@ -35,7 +35,7 @@ env:
   DXB_SHA: 663906528d1cd5ea8fde7de6f16de73db9511549
   # herolte-ios26: xnu-12377.121.6 (macOS 26.5, iOS 26); herolte-ios18: xnu-11215 (macOS 15.3, iOS 18);
   # everything else xnu-8796 (13.5, iOS 16)
-  MACOS_VERSION: ${{ inputs.macos_version || (github.ref_name == 'herolte-ios26' && '26.5' || (github.ref_name == 'herolte-ios18' && '15.3' || '13.5')) }}
+  MACOS_VERSION: ${{ inputs.macos_version || ((github.ref_name == 'herolte-ios26' || github.ref_name == 'gracelte-ios26') && '26.5' || (github.ref_name == 'herolte-ios18' && '15.3' || '13.5')) }}
   KERNEL_CONFIG: ${{ inputs.kernel_config || 'DEVELOPMENT' }}
   MACHINE_CONFIG: ${{ inputs.machine_config || 'HEROLTE' }}
 
@@ -49,7 +49,7 @@ jobs:
       fail-fast: false
       matrix:
         # 26.x (xnu-12377): macos-26 with Xcode 26.1, as Bergamota and dxb's own CI build 26.5
-        runner: ${{ fromJSON(inputs.runner && format('["{0}"]', inputs.runner) || (startsWith(inputs.macos_version || (github.ref_name == 'herolte-ios26' && '26.5' || ''), '26.') && '["macos-26"]' || '["macos-15-intel"]')) }}
+        runner: ${{ fromJSON(inputs.runner && format('["{0}"]', inputs.runner) || (startsWith(inputs.macos_version || ((github.ref_name == 'herolte-ios26' || github.ref_name == 'gracelte-ios26') && '26.5' || ''), '26.') && '["macos-26"]' || '["macos-15-intel"]')) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     steps:

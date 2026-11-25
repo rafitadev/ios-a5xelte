@@ -123,7 +123,7 @@ uintptr_t hero_prepare_xnu(uintptr_t fdt, volatile uint64_t *log, uint64_t el, u
 {
     uint64_t rd_start, rd_end;
     log[77] = hero_fb_enable();
-    hero_fb_text(0, "HEROLTE XNU LOADER");
+    hero_fb_text(0, BOARD_NAME " XNU LOADER");
     if (el != 4)
         return fail(log, -10, "NOT EL1");
     if (sctlr & 1)

@@ -42,6 +42,6 @@ index 7a3ba54..8f9c8a2 100644
 +/* Logical 0..3: Cortex-A53 "Apollo" MPIDR 0x100..0x103 (boot cluster);
 + * 4..7: Mongoose MPIDR 0x0..0x3. All started with PSCI CPU_ON. */
 +#define SWEET_SMP_MAX_CPUS            8
- #define A5XELTE_FB_PA                 0xe2a00000
+ #define A5XELTE_FB_PA                 0xd8000000
  #define A5XELTE_FB_WIDTH              1440
  #define A5XELTE_FB_HEIGHT             2560

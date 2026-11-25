@@ -53,7 +53,7 @@ index 7b93c3f..1395e32 100644
 +#define HG_GREEN        0xff00ff00u
 +
 +/* Panel scanout (mkadt_herolte.py FB_BASE) and the square to clear. */
-+#define HG_FB_PA        0xe2a00000ull
++#define HG_FB_PA        0xd8000000ull
 +#define HG_FB_STRIDE    5760u
 +#define HG_SQ_X         656u            /* (1440 - 128) / 2, 16-pixel aligned */
 +#define HG_SQ_Y         1216u           /* (2560 - 128) / 2 */

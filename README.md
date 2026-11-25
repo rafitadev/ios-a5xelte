@@ -40,6 +40,13 @@ Bergamota's EAGL shim (`gpu/eagl`), [ios-sweet](https://github.com/dipa-studio/i
 Based on [orhunnx/ios-a5xelte](https://github.com/orhunnx/ios-a5xelte) (A5 2016)
 and its Redmi Note 10 Pro donor, documented below.
 
+**Galaxy Note7 (SM-N930F, `gracelte`, same Exynos 8890):** a first adaptation of
+the S7 port lives on the `gracelte` branch: board-selectable loader/probe
+(`shim/gracelte/build.sh`), `tools/gracelte-*`, `tools/mkadt_gracelte.py` and
+[docs/gracelte-bringup.md](docs/gracelte-bringup.md). Build-checked only; not
+run on a Note7 yet ([GRACELTE_PROGRESS.md](GRACELTE_PROGRESS.md)). The Note FE
+(N935F) is `gracerlte`, a different board.
+
 ---
 
 # ios-a5xelte (SM-A510F experimental port)
