@@ -7,6 +7,10 @@ on:
       run_id:
         description: 'xnu run id to publish'
         required: true
+      artifact:
+        description: 'artifact name (xnu-kernel, or xnu-kernel-macos-26 for the iOS 26 build)'
+        required: false
+        default: 'xnu-kernel'
 permissions:
   contents: write
   actions: read
@@ -19,7 +23,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          gh run download "${{ inputs.run_id }}" -R "${{ github.repository }}" -n xnu-kernel -D k
+          gh run download "${{ inputs.run_id }}" -R "${{ github.repository }}" -n "${{ inputs.artifact || 'xnu-kernel' }}" -D k
           f="$(find k -name kernel.development.herolte | head -1)"
           test -n "$f"
           sha256sum "$f" > SHA256SUMS-kernel
