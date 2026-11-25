@@ -31,6 +31,54 @@ def set_prop(node, name, value):
     node.props.append((name, 0, value))
 
 
+def add_haptics(root):
+    """/product/haptics as the iPhone X's DeviceTree.d22ap has it (16.7.16): with
+    closed-loop, MobileGestalt's DeviceSupportsClosedLoopHaptics, Darwin plays its
+    vibrations and feedbacks as waveforms on the audio plug-in's "Actuator"
+    (gpu/hakios-audio), whose samples go to the motor (/dev/hakios-haptic).
+    Without it Darwin looks for an IOKit vibrator the iPhone X has not and stays
+    still. Idempotent."""
+    product = child(root, 'product')
+    if any(c.prop('name') == mkadt.cstr('haptics') for c in product.children):
+        return
+    def phandles(n):
+        yield int.from_bytes(n.prop('AAPL,phandle') or b'\0\0\0\0', 'little')
+        for c in n.children:
+            yield from phandles(c)
+    handle = max(phandles(root)) + 1
+    product.children.append(mkadt.node('haptics', [
+        ('AAPL,phandle', mkadt.u32(handle)),
+        ('closed-loop', mkadt.u32(1)),
+        ('supports-3rd-party-haptics', mkadt.u32(1)),
+    ]))
+
+
+def add_bluetooth_isp(root):
+    """From the Note FE port (its mkadt_gracerlte.py, 0435/0458): the iPhone X's Bluetooth node
+    (D22AP /arm-io/uart1/bluetooth's properties, bluetooth,n88), directly under /arm-io so the platform
+    expert makes it a nub (bluetoothd: "no bluetooth service in device tree" without it; boot-0344bt:
+    bluetoothd exited 0 again and again), and the S9 ports' camera node /arm-io/isp, where MobileGestalt
+    looks for cameras (no compatible, no device_type: no driver matches it). Idempotent."""
+    arm_io = child(root, 'arm-io')
+    names = {c.prop('name') for c in arm_io.children}
+    if mkadt.cstr('bluetooth') not in names:
+        arm_io.children.append(mkadt.node('bluetooth', [
+            ('device_type', mkadt.cstr('bluetooth')),
+            ('compatible', mkadt.cstr('bluetooth,n88')),
+            ('transport-speed', mkadt.u32(3000000)),
+            ('transport-encoding', mkadt.u32(3)),
+            ('vendor-id', mkadt.u32(0x05ac)),
+            ('product-id', mkadt.u32(0x12a0)),
+            ('coex', mkadt.u32(2)),
+            ('local-mac-address', bytes((0x02, 0x48, 0x45, 0x52, 0x4f, 0x02))),
+        ]))
+    if mkadt.cstr('isp') not in names:
+        arm_io.children.append(mkadt.node('isp', [
+            ('camera-rear', mkadt.u32(1)),
+            ('camera-front', mkadt.u32(1)),
+        ]))
+
+
 def child(node, name):
     for candidate in node.children:
         if candidate.prop('name') == mkadt.cstr(name):
@@ -38,8 +86,10 @@ def child(node, name):
     raise ValueError(f'missing donor ADT node {name}')
 
 
-def build(canvas=(FB_WIDTH, FB_HEIGHT), dram=(DRAM_BASE, DRAM_SIZE), scale=3):
-    root = mkadt.build(seed=os.urandom(64), qemu=True)
+def build(canvas=(FB_WIDTH, FB_HEIGHT), dram=(DRAM_BASE, DRAM_SIZE), scale=3, ios26=False, donor=None):
+    # xnu-12377 (iOS 26) wants 4 x SHA-512 of seed from the bootloader: 256 bytes ("Expected 256 seed bytes from
+    # bootloader, but got 64", Bergamota's first iOS 26 boot); xnu-11215 takes 64.
+    root = mkadt.build(seed=os.urandom(256 if ios26 else 64), qemu=True, donor=donor)
     if scale == 2:
         # --scale2 (as syncmodz/ios-s9): a whole iPhone XR screen, 414x896
         # points at @2x (828x1792), 2.5x fewer pixels than the panel for
@@ -74,11 +124,23 @@ def build(canvas=(FB_WIDTH, FB_HEIGHT), dram=(DRAM_BASE, DRAM_SIZE), scale=3):
     # compatible[0] is hw.model/hw.target, model is hw.machine. The donor's
     # /buttons stays (home-button-type 2: gesture navigation, no Home key).
     # 'samsung,a5xelte' keeps the shared SweetPlatformExpert IONameMatch.
-    set_prop(root, 'compatible', mkadt.cstr('D22AP') + mkadt.cstr('iPhone10,3') +
+    # --ios26: iOS 26 dropped the iPhone X and XR; the userland is the iPhone 11's (iPhone12,1 / N104AP, A13, 23G90),
+    # as Bergamota's iOS 26 port. Same 828x1792 @2x screen class as the XR (use with --scale2); /product comes from
+    # DeviceTree.n104ap (--donor).
+    board, machine, target = ('N104AP', 'iPhone12,1', 'N104') if ios26 else ('D22AP', 'iPhone10,3', 'D22')
+    set_prop(root, 'compatible', mkadt.cstr(board) + mkadt.cstr(machine) +
              mkadt.cstr('samsung,a5xelte') + mkadt.cstr('samsung,herolte') +
              (mkadt.cstr('samsung,gracelte') if BOARD == 'gracelte' else b'') +
              mkadt.cstr('samsung,exynos8890') + mkadt.cstr('AppleARM'))
+    set_prop(root, 'model', mkadt.cstr(machine))
+    set_prop(root, 'target-type', mkadt.cstr(target))
+    set_prop(root, 'target-sub-type', mkadt.cstr(board))
     chosen = child(root, 'chosen')
+    if ios26:
+        set_prop(chosen, 'chip-id', mkadt.u32(0x8030))      # A13
+        # xnu-12377 asserts _unsafe_kernel_text_initialized unless iBoot says whether it will lock kernel text
+        # (machine_routines.c); 1 = read-only text, the 11215 default (Bergamota's first iOS 26 boot).
+        set_prop(chosen, 'kernel-ctrr-to-be-enabled', mkadt.u32(1))
     set_prop(chosen, 'dram-base', mkadt.u64(dram[0]))
     set_prop(chosen, 'dram-size', mkadt.u64(dram[1]))
     set_prop(chosen, 'firmware-version', mkadt.cstr(BOARD + '-entry'))
@@ -93,6 +155,8 @@ def build(canvas=(FB_WIDTH, FB_HEIGHT), dram=(DRAM_BASE, DRAM_SIZE), scale=3):
     # into 10-bit 'w30r'/'b3a8' surfaces, which CoreAnimation over our OpenGL ES
     # never shows (Safari's pages and the stock wallpapers black, boot-0317).
     set_prop(child(root, 'product'), 'artwork-display-gamut', mkadt.cstr('sRGB'))
+    add_haptics(root)
+    add_bluetooth_isp(root)
     cpus = child(root, 'cpus')
     cpu0 = child(cpus, 'cpu0')
     # S-Boot starts on the Cortex-A53 "Apollo" cluster: MPIDR 0x100..0x103
@@ -194,6 +258,10 @@ if __name__ == '__main__':
                         help='iPhone XR screen, 828x1792 @2x (needs research/ipsw-x/d22ap.adt)')
     parser.add_argument('--iphone8', action='store_true',
                         help='iPhone 8 screen, 750x1334 @2x, with a home button')
+    parser.add_argument('--ios26', action='store_true',
+                        help='xnu-12377 / iOS 26: iPhone 11 identity (N104AP), 256-byte seed, kernel-ctrr-to-be-enabled')
+    parser.add_argument('--donor', type=Path,
+                        help='real device tree for /product (DeviceTree.d22ap payload; DeviceTree.n104ap for --ios26)')
     args = parser.parse_args()
     BOARD = args.board
     if BOARD == 'gracelte':
@@ -202,6 +270,7 @@ if __name__ == '__main__':
         FB_BASE = args.fb_base
     canvas = tuple(int(v) for v in args.canvas.lower().split('x'))
     dram = (BANK2_BASE, min(args.bank2_mb << 20, BANK2_SIZE)) if args.bank2 else (DRAM_BASE, DRAM_SIZE)
-    blob = adt.serialize(build(canvas, dram, 8 if args.iphone8 else 2 if args.scale2 else 3))
+    blob = adt.serialize(build(canvas, dram, 8 if args.iphone8 else 2 if args.scale2 else 3,
+                               ios26=args.ios26, donor=str(args.donor) if args.donor else None))
     args.output.write_bytes(blob)
     print(f'{args.output}: {len(blob)} bytes')
