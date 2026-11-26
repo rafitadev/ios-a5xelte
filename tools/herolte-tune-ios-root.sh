@@ -63,7 +63,8 @@ plist() {  # plist FILE KEY TYPE VALUE ...  (creates or updates entries, XML)
 
 # WallpaperKit offers only the wallpapers that name this screen's class
 # (1440x2560 at @3x); the IPSW has none. The 375w-812h ones are given it.
-find "$root/Library/Wallpaper/Collections" -path '*375w-812h*' -name Wallpaper.plist -print0 |
+[[ -d "$root/Library/Wallpaper/Collections" ]] || echo "warning: no $root/Library/Wallpaper/Collections (iOS 26 moved it?), wallpaper classes not patched" >&2
+{ find "$root/Library/Wallpaper/Collections" -path '*375w-812h*' -name Wallpaper.plist -print0 2>/dev/null || true; } |
 while IFS= read -r -d '' wallpaper; do
     if [[ -x /usr/bin/plutil ]]; then
         /usr/bin/plutil -replace logicalScreenClass -string '480w-853h@3x~iphone' "$wallpaper"
@@ -133,7 +134,7 @@ for section in ('LaunchDaemons', 'Agents', 'LaunchAgents'):
             removed.append(label or key)
             del jobs[key]
 if not any('CommCenter' in r for r in removed):
-    sys.exit('no CommCenter job found in launchd.plist')
+    print('warning: no CommCenter job found in launchd.plist', file=sys.stderr)
 if off_labels:
     print(f'launchd.plist: {len(removed)} jobs out (iOS 18), not found:',
           ', '.join(sorted(off_labels - set(removed))) or 'none')

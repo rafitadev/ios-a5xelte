@@ -87,11 +87,23 @@ jobs:
           df -h /
 
       - name: S7 tweaks (tools/herolte-tune-ios-root.sh)
+        id: tune
+        continue-on-error: true
         run: |
-          set -euo pipefail
+          set -uo pipefail
           root="$PWD/berg/research/ios26/full/root"
-          mount | grep -F "$root"
-          sudo bash tools/herolte-tune-ios-root.sh "$root" "$BUILD"
+          # Annotations (read through the API) are the only log that survives a failed run: say what is there.
+          {
+            mount | grep -F "$root" || echo "NOT MOUNTED: $root"
+            ls -ld "$root/sbin/launchd" "$root/System/Library/xpc/launchd.plist" "$root/Library/Wallpaper/Collections" 2>&1
+            ls "$root" 2>&1 | head -30 | tr '\n' ' '
+          } 2>&1 | while IFS= read -r l; do echo "::notice::diag $l"; done
+          sudo bash tools/herolte-tune-ios-root.sh "$root" "$BUILD" 2>&1 | tee tune.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            tail -25 tune.log | while IFS= read -r l; do echo "::error::tune: $l"; done
+            exit "$rc"
+          fi
 
       - name: Unmount the root (retries, then -force)
         run: |
@@ -136,5 +148,5 @@ jobs:
           tag="ios26-root-26.6.2-${{ github.run_id }}"
           shasum -a 256 n104ap.adt >> SHA256SUMS
           gh release create "$tag" root26.img.gz.part* n104ap.adt SHA256SUMS \
-            --title "iOS 26.6.2 (23G90) root for herolte/gracelte (Renegade + v80strip, 20 GiB)" \
+            --title "iOS 26.6.2 (23G90) root for herolte/gracelte (Renegade + v80strip, 20 GiB)${{ steps.tune.outcome == 'failure' && ' - S7 TWEAKS FAILED' || '' }}" \
             --notes "Apple software for personal use on the owner's device. Do not make this repository or release public."
